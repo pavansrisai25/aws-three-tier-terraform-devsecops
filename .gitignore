@@ -1,0 +1,61 @@
+# Terraform working directory
+.terraform/
+
+# Terraform state files
+*.tfstate
+*.tfstate.*
+
+# Variable files containing secrets
+*.tfvars
+*.tfvars.json
+
+# Terraform crash logs
+crash.log
+crash.*.log
+
+# Saved plans
+*.tfplan
+tfplan
+
+# Override files
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# CLI configuration
+.terraformrc
+terraform.rc
+
+# Local Terraform credentials and sensitive variable inputs
+*.auto.tfvars
+*.auto.tfvars.json
+*.tfvars
+*.tfvars.json
+
+# Local state backups and Terraform-generated data
+*.tfstate.backup
+terraform-state-backup.json
+
+# Local plans and execution artifacts (some may contain sensitive values)
+*.tfplan
+tfplan
+
+# Local virtual environments and scanner/tool output
+.venv*/
+console-output.json
+checkov*.json
+checkov*.sarif
+checkov*.xml
+
+# Local backups; review before committing any intentionally versioned backup
+*.bak
+*.backup
+
+# Temporary documentation backups
+*.before-final-update.md
+
+# Local SSM command files and plan review output
+ssm-install-mysql.json
+ssm-rds-test.json
+plan-review.txt
