@@ -1,36 +1,53 @@
-flowchart LR
-  Internet((Internet)) -->|HTTP :80| PublicALB[Public ALB\nDeletion protection]
-  subgraph VPC[ VPC 10.0.0.0/16 | 2 Availability Zones ]
-    subgraph Public[Public subnets 10.0.1.0/24 and 10.0.2.0/24]
-      PublicALB
-      WebASG[Web ASG\n1 desired, 1–2 instances]
-      IGW[Internet Gateway]
-      NAT[NAT Gateway\n+ Elastic IP]
-    end
-    subgraph App[Private application subnets 10.0.3.0/24 and 10.0.4.0/24]
-      InternalALB[Internal ALB\nHTTP :8080]
-      AppASG[Application ASG\n1 desired, 1–2 instances\nStatic demo page]
-    end
-    subgraph DB[Database subnets 10.0.5.0/24 and 10.0.6.0/24]
-      RDS[(RDS MySQL\nprivate, single-AZ\n20 GiB gp3 encrypted)]
-    end
-    Legacy[Legacy EC2 x2\nretained during migration]
-    PublicALB -->|HTTP :80| WebASG
-    WebASG -->|HTTP :8080| InternalALB
-    InternalALB -->|HTTP :8080| AppASG
-    AppASG -->|MySQL :3306 rule| RDS
-    Legacy -. retained targets .-> PublicALB
-    WebASG -. HTTPS egress .-> NAT
-    AppASG -. HTTPS egress .-> NAT
-    NAT --> IGW
-    PublicALB --> IGW
-  end
-  SSM[AWS Systems Manager] -. managed instance access .-> WebASG
-  SSM -. managed instance access .-> AppASG
 
-  classDef public fill:#e7f1ff,stroke:#3973ac,color:#172b4d;
-  classDef app fill:#eaf7ee,stroke:#3c8c59,color:#163b24;
-  classDef db fill:#fff2df,stroke:#b97716,color:#4e3210;
-  class PublicALB,WebASG,IGW,NAT public;
-  class InternalALB,AppASG app;
-  class RDS db;
+flowchart TB
+    Internet["Internet"]
+    IGW["Internet Gateway"]
+
+    subgraph VPC["VPC - 10.0.0.0/16"]
+        subgraph PUBLIC["Public Subnets - 2 AZs"]
+            ALB["Public Application Load Balancer"]
+            WEBTG["Public Web Target Group"]
+            WEBASG["Web Auto Scaling Group"]
+            WEBINST["Web ASG EC2 Instances"]
+            NAT["NAT Gateway"]
+        end
+
+        subgraph PRIVATEAPP["Private Application Subnets - 2 AZs"]
+            EC2A["Standalone EC2 Web A"]
+            EC2B["Standalone EC2 Web B"]
+            IALB["Internal Application Load Balancer"]
+            APPTG["Application Target Group"]
+            APPASG["Application Auto Scaling Group"]
+            APPINST["Application EC2 Instances"]
+        end
+
+        subgraph PRIVATEDB["Private Database Subnets - 2 AZs"]
+            DBA["Database Subnet A"]
+            DBB["Database Subnet B"]
+        end
+
+        RDSGROUP["RDS Subnet Group - 4 Subnets"]
+        RDS["Amazon RDS MySQL - Single AZ"]
+    end
+
+    Internet --> IGW
+    IGW --> ALB
+
+    ALB --> WEBTG
+    WEBTG --> EC2A
+    WEBTG --> EC2B
+    WEBTG --> WEBASG
+    WEBASG --> WEBINST
+
+    WEBINST --> IALB
+    IALB --> APPTG
+    APPTG --> APPASG
+    APPASG --> APPINST
+    APPINST --> RDS
+
+    DBA -.-> RDSGROUP
+    DBB -.-> RDSGROUP
+    RDSGROUP -.-> RDS
+
+    PRIVATEAPP -. Outbound traffic .-> NAT
+    NAT --> IGW
