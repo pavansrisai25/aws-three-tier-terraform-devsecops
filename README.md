@@ -6,54 +6,9 @@ Terraform configuration for a three-tier AWS demonstration in `ap-southeast-1`. 
 
 ## Architecture
 
-```mermaid
-flowchart LR
-  Internet((Internet)) -->|HTTP :80| PublicALB[Public ALB\nDeletion protection]
-  subgraph VPC[ VPC 10.0.0.0/16 | 2 Availability Zones ]
-    subgraph Public[Public subnets 10.0.1.0/24 and 10.0.2.0/24]
-      PublicALB
-      WebASG[Web ASG\n1 desired, 1–2 instances]
-      IGW[Internet Gateway]
-      NAT[NAT Gateway\n+ Elastic IP]
-    end
-    subgraph App[Private application subnets 10.0.3.0/24 and 10.0.4.0/24]
-      InternalALB[Internal ALB\nHTTP :8080]
-      AppASG[Application ASG\n1 desired, 1–2 instances\nStatic demo page]
-    end
-    subgraph DB[Database subnets 10.0.5.0/24 and 10.0.6.0/24]
-      RDS[(RDS MySQL\nprivate, single-AZ\n20 GiB gp3 encrypted)]
-    end
-    Legacy[Legacy EC2 x2\nretained during migration]
-    PublicALB -->|HTTP :80| WebASG
-    WebASG -->|HTTP :8080| InternalALB
-    InternalALB -->|HTTP :8080| AppASG
-    AppASG -->|MySQL :3306 rule| RDS
-    Legacy -. retained targets .-> PublicALB
-    WebASG -. HTTPS egress .-> NAT
-    AppASG -. HTTPS egress .-> NAT
-    NAT --> IGW
-    PublicALB --> IGW
-  end
-  SSM[AWS Systems Manager] -. managed instance access .-> WebASG
-  SSM -. managed instance access .-> AppASG
+![Three-Tier AWS Terraform DevSecOps Architecture](architecture.png)
 
-  classDef public fill:#e7f1ff,stroke:#3973ac,color:#172b4d;
-  classDef app fill:#eaf7ee,stroke:#3c8c59,color:#163b24;
-  classDef db fill:#fff2df,stroke:#b97716,color:#4e3210;
-  class PublicALB,WebASG,IGW,NAT public;
-  class InternalALB,AppASG app;
-  class RDS db;
-
-```
-
-See [architecture.mmd](architecture.mmd) for the editable Mermaid diagram. The VPC CIDR is `10.0.0.0/16`; each of two configured Availability Zones has a public, application, and database subnet (`/24`). Public subnets route through an Internet Gateway. Application subnets share one NAT Gateway for outbound traffic. Database subnets have no internet route.
-
-The public ALB accepts HTTP on port 80 and forwards to web instances. Web instances proxy to the internal ALB on port 8080; the internal ALB forwards to application instances on port 8080. Application instances have an outbound MySQL rule to the RDS security group on 3306. RDS is configured as non-public and single-AZ. Its subnet group currently includes both application and database subnets, reflecting the transitional source configuration.
-
-The ASGs each have desired/minimum capacity 1 and maximum 2. The web ASG is placed in public subnets; the application ASG is placed in private application subnets. Both launch templates use Amazon Linux 2023, `t3.micro` by default, IMDSv2 tokens required, and encrypted 8 GiB gp3 root volumes. A shared instance role attaches `AmazonSSMManagedInstanceCore`.
-
-The application launch template currently serves a static demonstration page; it does not implement database access. The RDS instance and its security-group path are provisioned independently of that demo application.
-
+See [architecture.mmd](architecture.mmd) for the editable Mermaid source.
 ## Configuration
 
 Defaults are declared in `variables.tf` and the AWS provider configuration is in `provider.tf`.
